@@ -54,7 +54,7 @@ function App() {
     setPopup(null)
 
     try {
-      const res = await axios.post("https://bulkmail-b3o9.vercel.app/send", {...}), {
+      const res = await axios.post("https://bulkmail-b3o9.vercel.app/send", {
         subject: subject,
         message: message,
         emails: emails
