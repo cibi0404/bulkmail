@@ -1,18 +1,50 @@
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
-require("dotenv").config();
 
+require("dotenv").config();
+const mongoose = require("mongoose");
+const Campaign = require("./models/Campaign");
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log("MongoDB connection error:", err));
+  
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS,
-  },
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+
+app.post("/send", async function (req, res) {
+  const { subject, message, emails } = req.body;
+
+  const recipients = [];
+
+  for (let i = 0; i < emails.length; i++) {
+    try {
+      await resend.emails.send({
+        from: "BulkMail <onboarding@resend.dev>",
+        to: emails[i],
+        subject: subject,
+        text: message,
+      });
+      recipients.push({ email: emails[i], status: "success" });
+    } catch (err) {
+      console.log(`Failed to send to ${emails[i]}:`, err.message);
+      recipients.push({ email: emails[i], status: "failed" });
+    }
+  }
+
+  try {
+    const campaign = new Campaign({ subject, message, recipients });
+    await campaign.save();
+  } catch (err) {
+    console.log("Error saving campaign:", err);
+  }
+
+  res.send("Success");
 });
 
 app.post("/send", function (req, res) {
